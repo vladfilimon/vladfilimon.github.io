@@ -9,4 +9,6 @@ The attacker has to control an address ending with a trailing 0. He would then u
 
 A transitional [checksum system] (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md) has eventually been developed for Ethereum, though it's not somemthing at protocol level, leaving it up to the wallets and exchanges if they choose to implement it or not.
 However, it is different from the one most other blockchains use (starting with Bitcoin) which is to encode the string in base 58 with an added version number and checksum, as Ethereum's EIP-55 would only capitalize some characters in the string:
->Convert the address to hex, but if the ith digit is a letter (ie. it's one of abcdef) print it in uppercase if the 4*ith bit of the hash of the lowercase hexadecimal address is 1 otherwise print it in lowercase.
+> Convert the address to hex, but if the ith digit is a letter (ie. it's one of abcdef) print it in uppercase if the 4*ith bit of the hash of the lowercase hexadecimal address is 1 otherwise print it in lowercase.
+
+There is a very interesting read regarding the checksums and addesses [here](https://ethereum.stackexchange.com/questions/267/why-dont-ethereum-addresses-have-checksums/274#274)
