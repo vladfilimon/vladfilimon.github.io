@@ -4,12 +4,7 @@ title: About
 permalink: /about/
 ---
 
-Some information about you!
-
-### More Information
-
-A place to include any other types of information that you'd like to include about yourself.
-
+Interested in punk rock, open source, ecommerce and distributed ledger technology. 
 ### Contact me
 
-[email@domain.com](mailto:email@domain.com)
+[vlad_filimon@yahoo.com](mailto:vlad_filimon@yahoo.com)
