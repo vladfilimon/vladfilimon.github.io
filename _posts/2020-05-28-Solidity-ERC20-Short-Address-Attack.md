@@ -18,9 +18,9 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 ## Input data
 Imagine calling a method on a contract would like (newlines added for clarity):
 ``
-0x90b98a11\n
-00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e\n
-0000000000000000000000000000000000000000000000000000000000000001
+   0x90b98a11
+   00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
+   0000000000000000000000000000000000000000000000000000000000000001
 ``
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature (keccack of method name)
