@@ -17,11 +17,11 @@ In a contract-invocation transaction the function hash signature, alongside the 
 If the lengt of the encoded arguments happens to be less than expected, EVM will auto-pad extra zeros to the arguments untill the correct lenghth of 32 bytes is reached.
 ## Input data
 Imagine calling a method on a contract would like (newlines added for clarity):
-```
+``
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
 0000000000000000000000000000000000000000000000000000000000000002
-```
+``
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature (keccack of method name)
 - 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e is the address (20 bytes) padded to 32 bytes
@@ -29,13 +29,13 @@ Where:
 ## Causing an underflow
 Removing the last byte of the address (3e) would cause an underflow, resulting in the input data looking like:
 
-```
+``
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
 00000000000000000000000000000000000000000000000000000000000002  
                                                               ^^
                                           A byte is missing here
-```	
+``
 
 Given this underflowed input data, the EVM would just add whatever bytes are missing up untill it reaches 68 bytes. (4 bytes => the method signature + 32 bytes => address + 32 bytes => amount). After the method signature, the missing bytes get counted together with the starting 00 from the amout, now effectively making up to 32 bytes. Because now one byte has shifted to the left, and the data now only has 67 bytes, EVM will add one 0 byte so the lenght of the data would be 68 bytes, and execute the call;
 
@@ -46,7 +46,11 @@ Given this underflowed input data, the EVM would just add whatever bytes are mis
 ``
 
 Where evm would supply the ?? with zeros. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 2 << 8 = 512
-
+## Why ERC20
+Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Basically any [ERC20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md)  tocken is succeptible to this vulnerability because of the order in which parameters are defined.
+```
+function transfer(address _to, uint256 _value) public returns (bool success)
+```
 ## How can the exploit be performed?
 1. The attacker has to control an address ending with a trailing 0.
 2. Use the above address to send an amount of X to an exchange wallet that does not validate eth addresses correctly.
