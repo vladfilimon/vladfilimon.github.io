@@ -26,3 +26,5 @@ Looks like this got fixed in Solidity v0.5.0 [see changelog](https://github.com/
 
 The community consensus on this one is that it should be handled at the level of the library that reads the ABI contract (web3.js, truffle-artifactor, etc).
 Because of this, the fix has been [removed](https://github.com/OpenZeppelin/openzeppelin-contracts/issues/261) from smart contract frameworks like OpenZeppelin.
+
+The easiest fix for this vulnerability is to check if the message has the correct length, quite possibly in a modifier as shown (here)]https://ethereum.github.io/browser-solidity/#gist=f5c444b9e087d03438aa990cb91b9e3a&optimize=false&version=soljson-v0.6.8+commit.0bbfe453.js)
