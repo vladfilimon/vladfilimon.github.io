@@ -17,26 +17,25 @@ In a contract-invocation transaction the function hash signature, alongside the 
 If the lengt of the encoded arguments happens to be less than expected, EVM will auto-pad extra zeros to the arguments untill the correct lenghth of 32 bytes is reached.
 ## Input data
 Imagine calling a method on a contract would like (newlines added for clarity):
-``
+```
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
 0000000000000000000000000000000000000000000000000000000000000002
-``
+```
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature (keccack of method name)
 - 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e is the address (20 bytes) padded to 32 bytes
 - 0000000000000000000000000000000000000000000000000000000000000002 represents the amount, unsigned integer padded to 32 btes
-
-Causing an underflow
+## Causing an underflow
 Removing the last byte of the address (3e) would cause an underflow, resulting in the input data looking like:
 
-``
+```
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
 00000000000000000000000000000000000000000000000000000000000002  
                                                               ^^
                                           A byte is missing here
-``	
+```	
 
 Given this underflowed input data, the EVM would just add whatever bytes are missing up untill it reaches 68 bytes. (4 bytes => the method signature + 32 bytes => address + 32 bytes => amount). After the method signature, the missing bytes get counted together with the starting 00 from the amout, now effectively making up to 32 bytes. Because now one byte has shifted to the left, and the data now only has 67 bytes, EVM will add one 0 byte so the lenght of the data would be 68 bytes, and execute the call;
 
