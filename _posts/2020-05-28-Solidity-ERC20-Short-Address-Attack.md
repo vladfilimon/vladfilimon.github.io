@@ -18,21 +18,21 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 ## Input data
 Imagine calling a method on a contract would like (newlines added for clarity):
 ``
-0x90b98a11
-00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
-0000000000000000000000000000000000000000000000000000000000000002
+0x90b98a11\n
+00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e\n
+0000000000000000000000000000000000000000000000000000000000000001
 ``
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature (keccack of method name)
 - 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e is the address (20 bytes) padded to 32 bytes
-- 0000000000000000000000000000000000000000000000000000000000000002 represents the amount, unsigned integer padded to 32 btes
+- 0000000000000000000000000000000000000000000000000000000000000001 represents the amount, exactly 1 WEI, unsigned integer padded to 32 bytes
 ## Causing an underflow
 Removing the last byte of the address (3e) would cause an underflow, resulting in the input data looking like:
 
 ``
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
-00000000000000000000000000000000000000000000000000000000000002  
+00000000000000000000000000000000000000000000000000000000000001  
                                                               ^^
                                           A byte is missing here
 ``
@@ -42,15 +42,18 @@ Given this underflowed input data, the EVM would just add whatever bytes are mis
 ``
 0x90b98a11
 00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
-00000000000000000000000000000000000000000000000000000000000002??
+00000000000000000000000000000000000000000000000000000000000001??
 ``
 
-Where evm would supply the ?? with zeros. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 2 << 8 = 512
+Where evm would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
+
 ## Why ERC20
-Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Basically any [ERC20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md)  tocken is succeptible to this vulnerability because of the order in which parameters are defined.
+Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Basically any token that implements the [ERC20 interface](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) is, in theory, succeptible to this vulnerability, because of the order in which parameters are defined in the interface:
 ```
 function transfer(address _to, uint256 _value) public returns (bool success)
 ```
+If the order of the parameters would have been switched, the extra zeros would have been added to the address, in which case it would not have made any difference.
+
 ## How can the exploit be performed?
 1. The attacker has to control an address ending with a trailing 0.
 2. Use the above address to send an amount of X to an exchange wallet that does not validate eth addresses correctly.
@@ -62,4 +65,4 @@ Because of this, the fix has been [removed](https://github.com/OpenZeppelin/open
 However, this got fixed in Solidity v0.5.0 [see changelog](https://github.com/ethereum/solidity/blob/v0.5.0/Changelog.md) by this [pull request](https://github.com/ethereum/solidity/pull/4224)
 > Code Generator: Revert at runtime if calldata is too short or points out of bounds. This is done inside the ABI decoder and therefore also applies to abi.decode().
 
-The easiest fix for this vulnerability is to check if the message has the correct length, quite possibly in a modifier as shown [here](https://ethereum.github.io/browser-solidity/#gist=f5c444b9e087d03438aa990cb91b9e3a&optimize=false&version=soljson-v0.6.8+commit.0bbfe453.js). The first workaround was suggested by Reddit user [ izqui9 ](https://www.reddit.com/r/ethereum/comments/63s917/worrysome_bug_exploit_with_erc20_token/dfwmhc3/), while Peter Vessens suggests a [similar solution](https://github.com/MonolithDAO/token/blob/master/audit/TokenSaleAudit.pdf). A problem with these fixes has been found in regards to [Multisig wallets](https://blog.coinfabrik.com/smart-contract-short-address-attack-mitigation-failure/). As the short address attack can only take place on buffer underflows, checking if the raw input data is equal *or greater* than the size of all the arguments (as each argument should be 32 bytes). The *or greater* part would allow an overflow, and should resolve the issues with the Multisig wallets, which send more bytes than expected)
+Should you opt to fix this in the contract layer, the easiest way would be to check if the message has the correct length, quite possibly in a modifier as shown [here](https://ethereum.github.io/browser-solidity/#gist=f5c444b9e087d03438aa990cb91b9e3a&optimize=false&version=soljson-v0.6.8+commit.0bbfe453.js). The first workaround was suggested by Reddit user [ izqui9 ](https://www.reddit.com/r/ethereum/comments/63s917/worrysome_bug_exploit_with_erc20_token/dfwmhc3/), while Peter Vessens suggests a [similar solution](https://github.com/MonolithDAO/token/blob/master/audit/TokenSaleAudit.pdf). A problem with these fixes has been found in regards to [Multisig wallets](https://blog.coinfabrik.com/smart-contract-short-address-attack-mitigation-failure/). As the short address attack can only take place on buffer underflows, checking if the raw input data is equal *or greater* than the size of all the arguments (as each argument should be 32 bytes). The *or greater* part would allow an overflow, and should resolve the issues with the Multisig wallets, which send more bytes than expected)
