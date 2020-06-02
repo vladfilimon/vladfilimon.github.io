@@ -21,5 +21,8 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 2. Use the above address to send an amount of X to an exchange wallet.
 3. The attacker withdraws his X amount from the exchange wallet back to his address but leaves off the last 0
 
-Looks like this got fixed in Solidity v0.5.0 [see changelog](https://github.com/ethereum/solidity/blob/v0.5.0/Changelog.md)
+Looks like this got fixed in Solidity v0.5.0 [see changelog](https://github.com/ethereum/solidity/blob/v0.5.0/Changelog.md) by this [pull request](https://github.com/ethereum/solidity/pull/4224)
 > Code Generator: Revert at runtime if calldata is too short or points out of bounds. This is done inside the ABI decoder and therefore also applies to abi.decode().
+
+The community consensus on this one is that it should be handled at the level of the library that reads the ABI contract (web3.js, truffle-artifactor, etc).
+Because of this, the fix has been [removed](https://github.com/OpenZeppelin/openzeppelin-contracts/issues/261) from smart contract frameworks like OpenZeppelin.
