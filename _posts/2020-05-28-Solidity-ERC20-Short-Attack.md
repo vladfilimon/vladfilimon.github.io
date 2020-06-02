@@ -20,3 +20,6 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 1. The attacker has to control an address ending with a trailing 0.
 2. Use the above address to send an amount of X to an exchange wallet.
 3. The attacker withdraws his X amount from the exchange wallet back to his address but leaves off the last 0
+
+Looks like this got fixed in Solidity v0.5.0 [see changelog](https://github.com/ethereum/solidity/blob/v0.5.0/Changelog.md)
+> Code Generator: Revert at runtime if calldata is too short or points out of bounds. This is done inside the ABI decoder and therefore also applies to abi.decode().
