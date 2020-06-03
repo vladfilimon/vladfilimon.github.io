@@ -40,9 +40,9 @@ Removing the last byte of the address (3e) would cause an underflow, resulting i
 Given this underflowed input data, the EVM would just add whatever bytes are missing up untill it reaches 68 bytes. (4 bytes => the method signature + 32 bytes => address + 32 bytes => amount). After the method signature, the missing bytes get counted together with the starting 00 from the amout, now effectively making up to 32 bytes. Because now one byte has shifted to the left, and the data now only has 67 bytes, EVM will add one 0 byte so the lenght of the data would be 68 bytes, and execute the call;
 
 ``
-0x90b98a11
-00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
-00000000000000000000000000000000000000000000000000000000000001??
+    0x90b98a11
+    00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
+    00000000000000000000000000000000000000000000000000000000000001??
 ``
 
 Where evm would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
