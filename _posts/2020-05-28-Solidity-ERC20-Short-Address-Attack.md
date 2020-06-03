@@ -27,7 +27,6 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 - Each argument supplied as a 32 bytes padded with zeros.
 
    For calling the transfer method in order to transfer an amount of 1 to an address 0x881f83D5317a12903472b89ccc54475e2a682d00, the input data payload should actually be:
-   
 ```
 a9059cbb (function selector) +
 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 (first argument) +
