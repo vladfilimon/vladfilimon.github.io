@@ -18,10 +18,12 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 ## Few words about calling a contract
  The input data payload for calling a contract is a hex-serialized string consisting of:
 - First 4 bytes represent the method signature (Keccak hash of the function's prototype together with the argument types (as Solidity supports [function overloading](https://solidity.readthedocs.io/en/v0.5.10/contracts.html?highlight=function%20overloading#function-overloading). For the ERC20 token interface, the signature of the `transfer(address, uint256)` would be:
+<br/>
 ``
 > web3.sha3("transfer(address,uint256)");  
 "0xa9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b"  
 ``
+<br/>
 Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
 - Each argument supplied as a 32 bytes padded with zeros.
 Thus, for calling the transfer method in order to transfer an amount of 1 to an address 0x337c67618968370907da31dAEf3020238D01c9de, the input data payload should actually be:
@@ -35,7 +37,7 @@ a9059cbb (function selector) +
 ## Input data payload
 Imagine calling a method on a contract would like (newlines added for clarity):
 ``
-   0x90b98a11
+   0x90b98a11<br/>
    00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
    0000000000000000000000000000000000000000000000000000000000000001
 ``
