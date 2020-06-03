@@ -33,7 +33,7 @@ a9059cbb (function selector) +
 0000000000000000000000000000000000000000000000008ac7230489e80000 (second argument)
 ```
 
-## Input data payload
+## Normal data payload
 Imagine calling a method on a contract would like (newlines added for clarity):
 ```
 0x90b98a11    
@@ -44,6 +44,7 @@ Where:
 - 0x90b98a11 (first 4 bytes) is the method signature 
 - 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 is the address (20 bytes) padded to 32 bytes
 - 0000000000000000000000000000000000000000000000000000000000000001 represents the amount, exactly 1 WEI, unsigned integer padded to 32 bytes
+
 ## Causing an underflow
 Removing the last byte of the address (00) would cause an underflow, resulting in the input data looking like:
 
@@ -65,7 +66,7 @@ Given this underflowed input data, the EVM would just add whatever bytes are mis
 
 At this point, the EVM would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
 
-## Why ERC20
+## ERC20
 Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Any token that implements the [ERC20 interface](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) is, in theory, succeptible to this vulnerability, because of the order in which parameters are defined in the interface:
 ```
 function transfer(address _to, uint256 _value) public returns (bool success)
