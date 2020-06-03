@@ -5,7 +5,7 @@ title: ERC20 Short Address / Parameter Attack
 > On: Security, Solidity, Smart Contracts, EVM
 
 This underflow attack is a very interesting one as it relies on a couple of things, like lack of input validation (offchain), Ethereum not ~~implementing~~ enforcing checksum on addresses, and finally the way the EVM adds 0 for a missing byte, packs together the method call and the arguments.
-To my understanding, this type of attack has never been observed in the wild. It is important to note that smart contracts cannot be attacked in this manner, but 3rd party (offchain) software that interacts with the smart contracts.
+To my understanding, this type of attack has never been observed in the wild. It is important to note that smart contracts cannot be attacked in this manner directly, but through 3rd party (offchain) software that interacts with the smart contracts.
 
 A transitional [checksum system] (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md) has eventually been developed for Ethereum, though it's not somemthing at protocol level, leaving it up to the wallets and exchanges if they choose to implement it or not.
 However, it is different from the one most other blockchains use (starting with Bitcoin) which is to encode the string in base 58 with an added version number and checksum, as Ethereum's EIP-55 would only capitalize some characters in the string:
@@ -23,59 +23,63 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 "0xa9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b"  
 ```
 
-Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
+   Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
 - Each argument supplied as a 32 bytes padded with zeros.
-Thus, for calling the transfer method in order to transfer an amount of 1 to an address 0x337c67618968370907da31dAEf3020238D01c9de, the input data payload should actually be:
+
+   Thus, for calling the transfer method in order to transfer an amount of 1 to an address 0x881f83D5317a12903472b89ccc54475e2a682d00, the input data payload should actually be:
 ```
 a9059cbb (function selector) +
-000000000000000000000000337c67618968370907da31dAEf3020238D01c9de (first argument) +
+000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 (first argument) +
 0000000000000000000000000000000000000000000000008ac7230489e80000 (second argument)
 ```
 
 ## Input data payload
 Imagine calling a method on a contract would like (newlines added for clarity):
 ``
-   0x90b98a11<br/>
-   00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e
+   0x90b98a11  
+   000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00
    0000000000000000000000000000000000000000000000000000000000000001
 ``
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature 
-- 00000000000000000000000062bec9abe373123b9b635b75608f94eb8644163e is the address (20 bytes) padded to 32 bytes
+- 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 is the address (20 bytes) padded to 32 bytes
 - 0000000000000000000000000000000000000000000000000000000000000001 represents the amount, exactly 1 WEI, unsigned integer padded to 32 bytes
 ## Causing an underflow
-Removing the last byte of the address (3e) would cause an underflow, resulting in the input data looking like:
+Removing the last byte of the address (00) would cause an underflow, resulting in the input data looking like:
 
 ``
 0x90b98a11
-00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600
-00000000000000000000000000000000000000000000000000000000000001  
+000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d??
                                                               ^^
                                           A byte is missing here
+0000000000000000000000000000000000000000000000000000000000000001  
 ``
 
 Given this underflowed input data, the EVM would just add whatever bytes are missing up untill it reaches 68 bytes. (4 bytes => the method signature + 32 bytes => address + 32 bytes => amount). After the method signature, the missing bytes get counted together with the starting 00 from the amout, now effectively making up to 32 bytes. Because now one byte has shifted to the left, and the data now only has 67 bytes, EVM will add one 0 byte so the lenght of the data would be 68 bytes, and execute the call;
 
 ``
     0x90b98a11  
-    00000000000000000000000062bec9abe373123b9b635b75608f94eb86441600  
+    000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00
     00000000000000000000000000000000000000000000000000000000000001??  
 ``
 
-Where evm would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
+At this point, the EVM would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
 
 ## Why ERC20
-Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Basically any token that implements the [ERC20 interface](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) is, in theory, succeptible to this vulnerability, because of the order in which parameters are defined in the interface:
+Basically, if address would have been the final parameter, instead of amount, the exploit would not have worked. Any token that implements the [ERC20 interface](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) is, in theory, succeptible to this vulnerability, because of the order in which parameters are defined in the interface:
 ```
 function transfer(address _to, uint256 _value) public returns (bool success)
 ```
 If the order of the parameters would have been switched, the extra zeros would have been added to the address, in which case it would not have made any difference.
 
 ## How can the exploit be performed?
-1. The attacker has to control an address ending with a trailing 0.
-2. Use the above address to send an amount of X to an exchange wallet that does not validate eth addresses correctly.
-3. The attacker withdraws his X amount from the exchange wallet back to his address but leaves off the last 0.
+1. The attacker has to control an address ending with one or more trailing 0
+2. The attacker has to find an exchange wallet or any other offchain software that does not perform appropriate validation on the address
+2. Use the above address to send an amount of X to the exchange wallet
+3. The attacker withdraws his X amount from the exchange wallet back to his address but leaves off the trailing 0.
+4. The balance is checked, and the operation is allowed. However, when the call to the EVM is made to perform the actual transacton, the data payload would be underflown. EVM will add trailing 0 at the end, actually modifying the amount, and broadcast the transaction
 
+## Fixes
 The community consensus on this one is that it should be handled at the level of the library that reads the [ABI](https://solidity.readthedocs.io/en/develop/abi-spec.html) contract (web3.js, truffle-artifactor, etc).
 Because of this, the fix has been [removed](https://github.com/OpenZeppelin/openzeppelin-contracts/issues/261) from smart contract frameworks like OpenZeppelin and from many individual contracts.
 
