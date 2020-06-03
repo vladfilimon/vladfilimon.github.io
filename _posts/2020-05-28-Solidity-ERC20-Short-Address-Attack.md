@@ -7,7 +7,9 @@ title: ERC20 Short Address / Parameter Attack
 This underflow attack is a very interesting one as it relies on a couple of things, like lack of input validation (offchain), Ethereum not ~~implementing~~ enforcing checksum on addresses, and finally the way the EVM adds 0 for a missing byte, packs together the method call and the arguments.
 To my understanding, this type of attack has never been observed in the wild. It is important to note that smart contracts cannot be attacked in this manner directly, but through 3rd party (offchain) software that interacts with the smart contracts.
 
-A transitional [checksum system] (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md) has eventually been developed for Ethereum, though it's not somemthing at protocol level, leaving it up to the wallets and exchanges if they choose to implement it or not.
+A transitional [checksum system] (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md) has eventually been developed for Ethereum, though it's not somemthing at protocol level, leaving it up to the wallets and exchanges if they choose to
+   Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
+- Each argument supplied as a 32 bytes padded with zeros. implement it or not.
 However, it is different from the one most other blockchains use (starting with Bitcoin) which is to encode the string in base 58 with an added version number and checksum, as Ethereum's EIP-55 would only capitalize some characters in the string:
 > Convert the address to hex, but if the ith digit is a letter (ie. it's one of abcdef) print it in uppercase if the 4*ith bit of the hash of the lowercase hexadecimal address is 1 otherwise print it in lowercase.
 
@@ -23,8 +25,6 @@ If the lengt of the encoded arguments happens to be less than expected, EVM will
 "0xa9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b"  
 ```
 
-   Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
-- Each argument supplied as a 32 bytes padded with zeros.
 
    For calling the transfer method in order to transfer an amount of 1 to an address 0x881f83D5317a12903472b89ccc54475e2a682d00, the input data payload should actually be:
 ```
@@ -35,11 +35,11 @@ a9059cbb (function selector) +
 
 ## Input data payload
 Imagine calling a method on a contract would like (newlines added for clarity):
-``
-   0x90b98a11    
-   000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00    
-   0000000000000000000000000000000000000000000000000000000000000001    
-``
+```
+0x90b98a11    
+000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00    
+0000000000000000000000000000000000000000000000000000000000000001    
+```
 Where:
 - 0x90b98a11 (first 4 bytes) is the method signature 
 - 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 is the address (20 bytes) padded to 32 bytes
@@ -47,21 +47,21 @@ Where:
 ## Causing an underflow
 Removing the last byte of the address (00) would cause an underflow, resulting in the input data looking like:
 
-``
+```
 0x90b98a11
 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d??
                                                               ^^
                                           A byte is missing here
 0000000000000000000000000000000000000000000000000000000000000001  
-``
+```
 
 Given this underflowed input data, the EVM would just add whatever bytes are missing up untill it reaches 68 bytes. (4 bytes => the method signature + 32 bytes => address + 32 bytes => amount). After the method signature, the missing bytes get counted together with the starting 00 from the amout, now effectively making up to 32 bytes. Because now one byte has shifted to the left, and the data now only has 67 bytes, EVM will add one 0 byte so the lenght of the data would be 68 bytes, and execute the call;
 
-``
+```
     0x90b98a11  
     000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00
     00000000000000000000000000000000000000000000000000000000000001??  
-``
+```
 
 At this point, the EVM would supply the ?? with zeros. But the amount ins an unsigned 256 integer. So, as one byte has shifted to the left, the amount that would actually get passed to the call would be 1 << 8 = 256 WEI.
 
