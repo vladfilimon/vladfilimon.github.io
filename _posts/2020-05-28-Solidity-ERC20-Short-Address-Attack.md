@@ -7,6 +7,7 @@ title: ERC20 Short Address / Parameter Attack
 This underflow attack is a very interesting one as it relies on a couple of things, like lack of input validation (offchain), Ethereum not ~~implementing~~ enforcing checksum on addresses, and finally the way the EVM adds 0 for a missing byte, packs together the method call and the arguments.
 To my understanding, this type of attack has never been observed in the wild. It is important to note that smart contracts cannot be attacked in this manner directly, but through 3rd party (offchain) software that interacts with the smart contracts.
 
+## Addresses Checksum
 A transitional [checksum system] (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md) has eventually been developed for Ethereum, though it's not somemthing at protocol level, leaving it up to the wallets and exchanges if they choose to
    Thus the first 4 bytes `0xa9059cbb`, representing the signature, would tell EVM which method to invoke.
 - Each argument supplied as a 32 bytes padded with zeros. implement it or not.
@@ -15,9 +16,10 @@ However, it is different from the one most other blockchains use (starting with 
 
 There is a very interesting read regarding the checksums and addesses [here](https://ethereum.stackexchange.com/questions/267/why-dont-ethereum-addresses-have-checksums/274#274)
 
+## Contract invocation
 In a contract-invocation transaction the function hash signature, alongside the arguments, are orderly encoded in the input field. The first four bytes specify callee function and the rest of the arguments are arranged in chunks of 32 bytes.
 If the lengt of the encoded arguments happens to be less than expected, EVM will auto-pad extra zeros to the arguments untill the correct lenghth of 32 bytes is reached.
-## Few words about calling a contract
+
  The input data payload for calling a contract is a hex-serialized string consisting of:
 - First 4 bytes represent the method signature (Keccak hash of the function's prototype together with the argument types, as Solidity supports [function overloading](https://solidity.readthedocs.io/en/v0.5.10/contracts.html?highlight=function%20overloading#function-overloading)). For the ERC20 token interface, the signature of the `transfer(address, uint256)` would be:
 ```
@@ -36,12 +38,12 @@ a9059cbb (function selector) +
 ## Normal data payload
 Imagine calling a method on a contract would like (newlines added for clarity):
 ```
-0x90b98a11    
+a9059cbb    
 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00    
 0000000000000000000000000000000000000000000000000000000000000001    
 ```
 Where:
-- 0x90b98a11 (first 4 bytes) is the method signature 
+- a9059cbb (first 4 bytes) is the method signature 
 - 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d00 is the address (20 bytes) padded to 32 bytes
 - 0000000000000000000000000000000000000000000000000000000000000001 represents the amount, exactly 1 WEI, unsigned integer padded to 32 bytes
 
@@ -49,7 +51,7 @@ Where:
 Removing the last byte of the address (00) would cause an underflow, resulting in the input data looking like:
 
 ```
-0x90b98a11
+a9059cbb
 000000000000000000000000881f83D5317a12903472b89ccc54475e2a682d??
                                                               ^^
                                           A byte is missing here
@@ -87,4 +89,4 @@ Because of this, the fix has been [removed](https://github.com/OpenZeppelin/open
 However, this got fixed in Solidity v0.5.0 [see changelog](https://github.com/ethereum/solidity/blob/v0.5.0/Changelog.md) by this [pull request](https://github.com/ethereum/solidity/pull/4224)
 > Code Generator: Revert at runtime if calldata is too short or points out of bounds. This is done inside the ABI decoder and therefore also applies to abi.decode().
 
-Should you opt to fix this in the contract layer, the easiest way would be to check if the message has the correct length, quite possibly in a modifier as shown [here](https://ethereum.github.io/browser-solidity/#gist=f5c444b9e087d03438aa990cb91b9e3a&optimize=false&version=soljson-v0.6.8+commit.0bbfe453.js). The first workaround was suggested by Reddit user [ izqui9 ](https://www.reddit.com/r/ethereum/comments/63s917/worrysome_bug_exploit_with_erc20_token/dfwmhc3/), while Peter Vessens suggests a [similar solution](https://github.com/MonolithDAO/token/blob/master/audit/TokenSaleAudit.pdf). A problem with these fixes has been found in regards to [Multisig wallets](https://blog.coinfabrik.com/smart-contract-short-address-attack-mitigation-failure/). As the short address attack can only take place on buffer underflows, checking if the raw input data is equal *or greater* than the size of all the arguments (as each argument should be 32 bytes). The *or greater* part would allow an overflow, and should resolve the issues with the Multisig wallets, which send more bytes than expected)
+Should you opt to fix this in the contract layer, the easiest way would be to check if the message has the correct length. The first workaround was suggested by Reddit user [ izqui9 ](https://www.reddit.com/r/ethereum/comments/63s917/worrysome_bug_exploit_with_erc20_token/dfwmhc3/), while Peter Vessens suggests a [similar solution](https://github.com/MonolithDAO/token/blob/master/audit/TokenSaleAudit.pdf). A problem with these fixes has been found in regards to [Multisig wallets](https://blog.coinfabrik.com/smart-contract-short-address-attack-mitigation-failure/). As the short address attack can only take place on buffer underflows, checking if the raw input data is equal *or greater* than the size of all the arguments (as each argument should be 32 bytes). The *or greater* part would allow an overflow, and should resolve the issues with the Multisig wallets, which send more bytes than expected). To me, a better fix would be this one shown [here](https://ethereum.github.io/browser-solidity/#gist=f5c444b9e087d03438aa990cb91b9e3a&optimize=false&version=soljson-v0.6.8+commit.0bbfe453.js), which would allow overflows but not underflows.
